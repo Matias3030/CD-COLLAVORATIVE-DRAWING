@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,17 +8,52 @@
         body {
             font-family: 'Comic Sans MS', cursive, sans-serif;
             text-align: center;
-            background-color: #f0f0f0;
+            background-color: #ffffff;
+            color: #333;
         }
         #canvas {
-            border: 1px solid black;
+            border: 2px solid #333;
             cursor: crosshair;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
         .toolbar {
             margin: 10px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        .toolbar button, .toolbar select {
+        .toolbar button, .toolbar select, .toolbar input {
             margin: 5px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        .toolbar button:hover, .toolbar select:hover, .toolbar input:hover {
+            background-color: #e9e9e9;
+        }
+        #visitCounter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #fff;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 600px) {
+            body {
+                font-size: 14px;
+            }
+            #canvas {
+                width: 100%;
+                height: auto;
+            }
         }
     </style>
 </head>
@@ -26,7 +61,7 @@
     <h1>Collaborative Drawing</h1>
     <div class="toolbar">
         <label for="colorPicker">Color:</label>
-        <input type="color" id="colorPicker" value="#000000">
+        <input type="color" id="colorPicker">
         <label for="brushSize">Brush Size:</label>
         <select id="brushSize">
             <option value="2">Fine</option>
@@ -36,6 +71,9 @@
         <button onclick="setTool('pencil')">✏️ Pencil</button>
         <button onclick="setTool('eraser')">🧽 Eraser</button>
         <button onclick="setTool('text')">📝 Text</button>
+        <button onclick="setTool('fill')">🪣 Fill</button>
+        <button onclick="setTool('shape')">🔲 Shape</button>
+        <button onclick="addImage()">🖼️ Add Image</button>
         <button onclick="clearCanvas()">Clear</button>
         <button onclick="saveDrawing()">Save</button>
         <label for="fontSelect">Font:</label>
@@ -46,7 +84,8 @@
             <option value="Courier New">Courier New</option>
         </select>
     </div>
-    <canvas id="canvas" width="2000" height="2000"></canvas>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <div id="visitCounter">Visits: <span id="visitCount">0</span></div>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -54,27 +93,23 @@
         let brushSize = 2;
         let tool = 'pencil';
         let drawings = JSON.parse(localStorage.getItem('drawings')) || [];
+        let visitCount = localStorage.getItem('visitCount') || 0;
+
+        // Update visit counter
+        visitCount++;
+        localStorage.setItem('visitCount', visitCount);
+        document.getElementById('visitCount').innerText = visitCount;
 
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('click', addText);
+        canvas.addEventListener('click', handleClick);
         document.getElementById('colorPicker').addEventListener('input', changeColor);
         document.getElementById('brushSize').addEventListener('change', changeBrushSize);
 
         function setTool(selectedTool) {
             tool = selectedTool;
-            switch (tool) {
-                case 'pencil':
-                    canvas.style.cursor = 'url(https://twemoji.maxcdn.com/v/latest/72x72/270f.png), auto';
-                    break;
-                case 'eraser':
-                    canvas.style.cursor = 'url(https://twemoji.maxcdn.com/v/latest/72x72/1f9f9.png), auto';
-                    break;
-                case 'text':
-                    canvas.style.cursor = 'text';
-                    break;
-            }
+            canvas.style.cursor = 'default'; // Set cursor to default
         }
 
         function startDrawing(e) {
@@ -94,17 +129,14 @@
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
-
             if (x < 0 || x > canvas.width || y < 0 || y > canvas.height) {
                 alert('You cannot draw outside the canvas.');
                 return;
             }
-
             if (tool === 'pencil') {
                 ctx.lineWidth = brushSize;
                 ctx.lineCap = 'round';
                 ctx.strokeStyle = document.getElementById('colorPicker').value;
-
                 ctx.lineTo(x, y);
                 ctx.stroke();
                 ctx.beginPath();
@@ -114,20 +146,27 @@
             }
         }
 
-        function addText(e) {
+        function handleClick(e) {
             if (tool === 'text') {
-                const text = prompt('Enter your text:');
-                if (text) {
-                    const rect = canvas.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    const font = document.getElementById('fontSelect').value;
-                    const color = document.getElementById('colorPicker').value;
+                addText(e);
+            } else if (tool === 'fill') {
+                fillCanvas(e);
+            } else if (tool === 'shape') {
+                drawShape(e);
+            }
+        }
 
-                    ctx.font = `20px ${font}`;
-                    ctx.fillStyle = color;
-                    ctx.fillText(text, x, y);
-                }
+        function addText(e) {
+            const text = prompt('Enter your text:');
+            if (text) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const font = document.getElementById('fontSelect').value;
+                const color = document.getElementById('colorPicker').value;
+                ctx.font = `20px ${font}`;
+                ctx.fillStyle = color;
+                ctx.fillText(text, x, y);
             }
         }
 
@@ -146,10 +185,7 @@
         function saveDrawing() {
             const author = prompt('Enter your name:');
             if (author) {
-                const drawingData = {
-                    author: author,
-                    image: canvas.toDataURL()
-                };
+                const drawingData = { author: author, image: canvas.toDataURL() };
                 drawings.push(drawingData);
                 localStorage.setItem('drawings', JSON.stringify(drawings));
                 alert('Drawing saved!');
@@ -166,7 +202,49 @@
             });
         }
 
+        function fillCanvas(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const color = document.getElementById('colorPicker').value;
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function drawShape(e) {
+            const shape = prompt('Enter shape (rectangle, circle):');
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const color = document.getElementById('colorPicker').value;
+            ctx.fillStyle = color;
+            if (shape === 'rectangle') {
+                const width = prompt('Enter width:');
+                const height = prompt('Enter height:');
+                ctx.fillRect(x, y, width, height);
+            } else if (shape === 'circle') {
+                const radius = prompt('Enter radius:');
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function addImage() {
+            const imageUrl = prompt('Enter image URL:');
+            if (imageUrl) {
+                const img = new Image();
+                img.src = imageUrl;
+                img.onload = () => {
+                    const x = prompt('Enter x position:');
+                    const y = prompt('Enter y position:');
+                    ctx.drawImage(img, x, y);
+                };
+            }
+        }
+
         window.onload = loadDrawings;
     </script>
 </body>
 </html>
+[_{{{CITATION{{{_1{](https://github.com/la9una/web/tree/ba1073ae044ebb7b538a3b13f0f9598f7c410bb6/docs%2Fbootstrap%2Falignci.md)[_{{{CITATION{{{_2{](https://github.com/CLONATORE/markdowns/tree/82cfb03683ceb807a7091de48045e6a7485acd72/webpack.md)
