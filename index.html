@@ -212,8 +212,8 @@
             const y = e.clientY - rect.top;
             const color = document.getElementById('colorPicker').value;
             ctx.fillStyle = color;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            socket.emit('fillCanvas', { color });
+            floodFill(x, y, color);
+            socket.emit('fillCanvas', { x, y, color });
         }
 
         function drawShape(e) {
@@ -227,4 +227,6 @@
                 const width = prompt('Enter width:');
                 const height = prompt('Enter height:');
                 ctx.fillRect(x, y, width, height);
-                socket.emit('drawShape', { shape, x, y, width, height[_{{{CITATION{{{_1{](https://github.com/la9una/web/tree/ba1073ae044ebb7b538a3b13f0f9598f7c410bb6/docs%2Fbootstrap%2Falignci.md)[_{{{CITATION{{{_2{](https://github.com/CLONATORE/markdowns/tree/82cfb03683ceb807a7091de48045e6a7485acd72/webpack.md)
+                socket.emit('drawShape', { shape, x, y, width, height, color });
+            } else if (shape === 'circle') {
+                const radius = prompt('Enter radius:[_{{{CITATION{{{_1{](https://github.com/la9una/web/tree/ba1073ae044ebb7b538a3b13f0f9598f7c410bb6/docs%2Fbootstrap%2Falignci.md)[_{{{CITATION{{{_2{](https://github.com/CLONATORE/markdowns/tree/82cfb03683ceb807a7091de48045e6a7485acd72/webpack.md)
