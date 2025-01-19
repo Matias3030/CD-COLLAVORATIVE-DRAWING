@@ -13,7 +13,7 @@
         }
         #canvas {
             border: 2px solid #333;
-            cursor: crosshair;
+            cursor: default;
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
@@ -86,24 +86,31 @@
     </div>
     <canvas id="canvas" width="800" height="600"></canvas>
     <div id="visitCounter">Visits: <span id="visitCount">0</span></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const socket = io('https://your-server-url'); // Replace with your server URL
         let drawing = false;
         let brushSize = 2;
         let tool = 'pencil';
-        let drawings = JSON.parse(localStorage.getItem('drawings')) || [];
-        let visitCount = localStorage.getItem('visitCount') || 0;
+        let visitCount = 0;
 
         // Update visit counter
-        visitCount++;
-        localStorage.setItem('visitCount', visitCount);
-        document.getElementById('visitCount').innerText = visitCount;
+        socket.on('visitCount', (count) => {
+            visitCount = count;
+            document.getElementById('visitCount').innerText = visitCount;
+        });
+
+        socket.emit('newVisit');
 
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('touchstart', startDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+        canvas.addEventListener('touchmove', draw);
         document.getElementById('colorPicker').addEventListener('input', changeColor);
         document.getElementById('brushSize').addEventListener('change', changeBrushSize);
 
@@ -113,22 +120,26 @@
         }
 
         function startDrawing(e) {
+            e.preventDefault();
             if (tool === 'pencil' || tool === 'eraser') {
                 drawing = true;
                 draw(e);
             }
         }
 
-        function stopDrawing() {
+        function stopDrawing(e) {
+            e.preventDefault();
             drawing = false;
             ctx.beginPath();
+            socket.emit('stopDrawing');
         }
 
         function draw(e) {
+            e.preventDefault();
             if (!drawing) return;
             const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
             if (x < 0 || x > canvas.width || y < 0 || y > canvas.height) {
                 alert('You cannot draw outside the canvas.');
                 return;
@@ -141,8 +152,10 @@
                 ctx.stroke();
                 ctx.beginPath();
                 ctx.moveTo(x, y);
+                socket.emit('draw', { x, y, tool, brushSize, color: ctx.strokeStyle });
             } else if (tool === 'eraser') {
                 ctx.clearRect(x - brushSize / 2, y - brushSize / 2, brushSize, brushSize);
+                socket.emit('erase', { x, y, brushSize });
             }
         }
 
@@ -167,6 +180,7 @@
                 ctx.font = `20px ${font}`;
                 ctx.fillStyle = color;
                 ctx.fillText(text, x, y);
+                socket.emit('addText', { text, x, y, font, color });
             }
         }
 
@@ -180,26 +194,16 @@
 
         function clearCanvas() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            socket.emit('clearCanvas');
         }
 
         function saveDrawing() {
             const author = prompt('Enter your name:');
             if (author) {
                 const drawingData = { author: author, image: canvas.toDataURL() };
-                drawings.push(drawingData);
-                localStorage.setItem('drawings', JSON.stringify(drawings));
+                socket.emit('saveDrawing', drawingData);
                 alert('Drawing saved!');
             }
-        }
-
-        function loadDrawings() {
-            drawings.forEach(drawing => {
-                const img = new Image();
-                img.src = drawing.image;
-                img.onload = () => {
-                    ctx.drawImage(img, 0, 0);
-                };
-            });
         }
 
         function fillCanvas(e) {
@@ -209,6 +213,7 @@
             const color = document.getElementById('colorPicker').value;
             ctx.fillStyle = color;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            socket.emit('fillCanvas', { color });
         }
 
         function drawShape(e) {
@@ -222,28 +227,4 @@
                 const width = prompt('Enter width:');
                 const height = prompt('Enter height:');
                 ctx.fillRect(x, y, width, height);
-            } else if (shape === 'circle') {
-                const radius = prompt('Enter radius:');
-                ctx.beginPath();
-                ctx.arc(x, y, radius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
-        function addImage() {
-            const imageUrl = prompt('Enter image URL:');
-            if (imageUrl) {
-                const img = new Image();
-                img.src = imageUrl;
-                img.onload = () => {
-                    const x = prompt('Enter x position:');
-                    const y = prompt('Enter y position:');
-                    ctx.drawImage(img, x, y);
-                };
-            }
-        }
-
-        window.onload = loadDrawings;
-    </script>
-</body>
-</html>
+                socket.emit('drawShape', { shape, x, y, width, height[_{{{CITATION{{{_1{](https://github.com/la9una/web/tree/ba1073ae044ebb7b538a3b13f0f9598f7c410bb6/docs%2Fbootstrap%2Falignci.md)[_{{{CITATION{{{_2{](https://github.com/CLONATORE/markdowns/tree/82cfb03683ceb807a7091de48045e6a7485acd72/webpack.md)
